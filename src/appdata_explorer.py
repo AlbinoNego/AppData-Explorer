@@ -268,8 +268,8 @@ class App(tk.Tk):
         self.sort_state: dict[str, bool] = {}
         self.file_sort_state: dict[str, bool] = {}
         self.current_folder: Path | None = None
-        self.folder_history: list[Path] = []
-        self.forward_history: list[Path] = []
+        self.navigation_history: list[Path] = []
+        self.navigation_index = -1
         self.appdata_root_paths = [root.resolve() for _, root in appdata_roots() if root.exists()]
 
         self._build_ui()
@@ -304,8 +304,10 @@ class App(tk.Tk):
 
         ttk.Button(nav, text="Relatorio", command=lambda: self.notebook.select(self.report_tab)).pack(side=tk.LEFT)
         ttk.Button(nav, text="Explorar", command=lambda: self.notebook.select(self.explorer_tab)).pack(side=tk.LEFT, padx=(6, 14))
-        ttk.Button(nav, text="←", width=3, command=self.go_back).pack(side=tk.LEFT)
-        ttk.Button(nav, text="→", width=3, command=self.go_forward).pack(side=tk.LEFT, padx=(6, 8))
+        self.back_button = ttk.Button(nav, text="←", width=3, command=self.go_back, state=tk.DISABLED)
+        self.back_button.pack(side=tk.LEFT)
+        self.forward_button = ttk.Button(nav, text="→", width=3, command=self.go_forward, state=tk.DISABLED)
+        self.forward_button.pack(side=tk.LEFT, padx=(6, 8))
 
         self.path_var = tk.StringVar()
         self.path_entry = ttk.Entry(nav, textvariable=self.path_var)
@@ -547,7 +549,7 @@ class App(tk.Tk):
         path = Path(self.path_var.get().strip())
         self.navigate_to(path, remember=True)
 
-    def navigate_to(self, path: Path, remember: bool = True, clear_forward: bool = True) -> None:
+    def navigate_to(self, path: Path, remember: bool = True) -> None:
         try:
             resolved = path.resolve()
         except OSError:
@@ -558,14 +560,34 @@ class App(tk.Tk):
             messagebox.showerror(APP_NAME, "O caminho precisa ser uma pasta existente.")
             return
 
-        if self.current_folder and remember and resolved != self.current_folder:
-            self.folder_history.append(self.current_folder)
-            if clear_forward:
-                self.forward_history.clear()
+        self.show_folder(resolved)
 
-        self.current_folder = resolved
-        self.path_var.set(str(resolved))
-        self.load_folder_entries(resolved)
+        if remember:
+            self.record_navigation(resolved)
+
+    def show_folder(self, folder: Path) -> None:
+        self.current_folder = folder
+        self.path_var.set(str(folder))
+        self.load_folder_entries(folder)
+        self.update_navigation_buttons()
+
+    def record_navigation(self, folder: Path) -> None:
+        if self.navigation_index >= 0 and self.navigation_history[self.navigation_index] == folder:
+            self.update_navigation_buttons()
+            return
+
+        if self.navigation_index < len(self.navigation_history) - 1:
+            self.navigation_history = self.navigation_history[: self.navigation_index + 1]
+
+        self.navigation_history.append(folder)
+        self.navigation_index = len(self.navigation_history) - 1
+        self.update_navigation_buttons()
+
+    def update_navigation_buttons(self) -> None:
+        self.back_button.configure(state=tk.NORMAL if self.navigation_index > 0 else tk.DISABLED)
+        self.forward_button.configure(
+            state=tk.NORMAL if 0 <= self.navigation_index < len(self.navigation_history) - 1 else tk.DISABLED
+        )
 
     def load_folder_entries(self, folder: Path) -> None:
         for item_id in self.file_tree.get_children():
@@ -724,20 +746,16 @@ class App(tk.Tk):
             self.load_folder_entries(self.current_folder)
 
     def go_back(self) -> None:
-        if not self.folder_history:
+        if self.navigation_index <= 0:
             return
-        if self.current_folder is not None:
-            self.forward_history.append(self.current_folder)
-        previous = self.folder_history.pop()
-        self.navigate_to(previous, remember=False, clear_forward=False)
+        self.navigation_index -= 1
+        self.show_folder(self.navigation_history[self.navigation_index])
 
     def go_forward(self) -> None:
-        if not self.forward_history:
+        if self.navigation_index < 0 or self.navigation_index >= len(self.navigation_history) - 1:
             return
-        if self.current_folder is not None:
-            self.folder_history.append(self.current_folder)
-        next_folder = self.forward_history.pop()
-        self.navigate_to(next_folder, remember=False, clear_forward=False)
+        self.navigation_index += 1
+        self.show_folder(self.navigation_history[self.navigation_index])
 
     def export_csv(self) -> None:
         if not self.results:
