@@ -19,9 +19,9 @@ O programa apenas le arquivos e gera relatorio. Ele nao apaga arquivos.
 - Exporta relatorio em CSV ou JSON.
 - Ordena colunas ao clicar no cabecalho, incluindo colunas numericas.
 - Tem barra de navegacao com abas de relatorio e explorar.
-- Permite navegar dentro das pastas analisadas pelo proprio programa.
+- Permite navegar com voltar e avancar dentro das pastas analisadas pelo proprio programa.
 - Mostra tamanho de arquivos, pastas e subpastas no modo `Explorar`.
-- Permite abrir arquivos/pastas diretamente ou revelar no Explorer do Windows.
+- Permite revelar itens no Explorer do Windows.
 - Permite excluir arquivos e pastas dentro do AppData com confirmacao.
 - Ignora links simbolicos para evitar loops.
 - Continua a analise mesmo quando encontra arquivos bloqueados ou sem permissao.
@@ -36,7 +36,7 @@ No `Explorar`:
 - duplo clique em uma pasta navega para dentro dela;
 - duplo clique em um arquivo tenta abrir o arquivo no app padrao do Windows;
 - `Mostrar no Explorer` abre o item no Explorer do Windows;
-- `Excluir selecionado` remove o item permanentemente, depois de confirmar.
+- `Excluir selecionado`, destacado em vermelho, remove o item permanentemente depois de confirmar.
 
 A exclusao e limitada aos caminhos de AppData detectados pelo programa.
 

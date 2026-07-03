@@ -269,6 +269,7 @@ class App(tk.Tk):
         self.file_sort_state: dict[str, bool] = {}
         self.current_folder: Path | None = None
         self.folder_history: list[Path] = []
+        self.forward_history: list[Path] = []
         self.appdata_root_paths = [root.resolve() for _, root in appdata_roots() if root.exists()]
 
         self._build_ui()
@@ -303,8 +304,8 @@ class App(tk.Tk):
 
         ttk.Button(nav, text="Relatorio", command=lambda: self.notebook.select(self.report_tab)).pack(side=tk.LEFT)
         ttk.Button(nav, text="Explorar", command=lambda: self.notebook.select(self.explorer_tab)).pack(side=tk.LEFT, padx=(6, 14))
-        ttk.Button(nav, text="↓", width=3, command=self.go_back).pack(side=tk.LEFT)
-        ttk.Button(nav, text="↑", width=3, command=self.go_up).pack(side=tk.LEFT, padx=(6, 8))
+        ttk.Button(nav, text="←", width=3, command=self.go_back).pack(side=tk.LEFT)
+        ttk.Button(nav, text="→", width=3, command=self.go_forward).pack(side=tk.LEFT, padx=(6, 8))
 
         self.path_var = tk.StringVar()
         self.path_entry = ttk.Entry(nav, textvariable=self.path_var)
@@ -370,10 +371,20 @@ class App(tk.Tk):
         actions = ttk.Frame(self.explorer_tab, padding=(0, 0, 0, 8))
         actions.pack(fill=tk.X)
 
-        ttk.Button(actions, text="Abrir pasta do relatorio", command=self.open_selected_result_in_explorer_tab).pack(side=tk.LEFT)
-        ttk.Button(actions, text="Abrir selecionado", command=self.open_selected_file).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(actions, text="Mostrar no Explorer", command=self.reveal_selected_file).pack(side=tk.LEFT, padx=(8, 0))
-        ttk.Button(actions, text="Excluir selecionado", command=self.delete_selected_file).pack(side=tk.LEFT, padx=(8, 0))
+        tk.Button(
+            actions,
+            text="Excluir selecionado",
+            command=self.delete_selected_file,
+            bg="#c62828",
+            fg="white",
+            activebackground="#b71c1c",
+            activeforeground="white",
+            relief=tk.RAISED,
+            borderwidth=1,
+            padx=8,
+            pady=2,
+        ).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(actions, text="Atualizar", command=self.refresh_current_folder).pack(side=tk.LEFT, padx=(8, 0))
 
         columns = ("name", "kind", "size", "folders", "files", "modified", "path")
@@ -536,7 +547,7 @@ class App(tk.Tk):
         path = Path(self.path_var.get().strip())
         self.navigate_to(path, remember=True)
 
-    def navigate_to(self, path: Path, remember: bool = True) -> None:
+    def navigate_to(self, path: Path, remember: bool = True, clear_forward: bool = True) -> None:
         try:
             resolved = path.resolve()
         except OSError:
@@ -549,6 +560,8 @@ class App(tk.Tk):
 
         if self.current_folder and remember and resolved != self.current_folder:
             self.folder_history.append(self.current_folder)
+            if clear_forward:
+                self.forward_history.clear()
 
         self.current_folder = resolved
         self.path_var.set(str(resolved))
@@ -713,16 +726,18 @@ class App(tk.Tk):
     def go_back(self) -> None:
         if not self.folder_history:
             return
+        if self.current_folder is not None:
+            self.forward_history.append(self.current_folder)
         previous = self.folder_history.pop()
-        self.navigate_to(previous, remember=False)
+        self.navigate_to(previous, remember=False, clear_forward=False)
 
-    def go_up(self) -> None:
-        if self.current_folder is None:
+    def go_forward(self) -> None:
+        if not self.forward_history:
             return
-        parent = self.current_folder.parent
-        if parent == self.current_folder:
-            return
-        self.navigate_to(parent, remember=True)
+        if self.current_folder is not None:
+            self.folder_history.append(self.current_folder)
+        next_folder = self.forward_history.pop()
+        self.navigate_to(next_folder, remember=False, clear_forward=False)
 
     def export_csv(self) -> None:
         if not self.results:
